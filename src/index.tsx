@@ -367,30 +367,63 @@ const ResizableImage = React.memo(
       originalLayout.x.value = w;
       originalLayout.y.value = h;
 
-      const portrait = width > height;
-
-      if (portrait) {
-        const imageHeight = Math.min((h * width) / w, height);
-        const imageWidth = Math.min(w, width);
-        layout.y.value = imageHeight;
-        if (imageHeight === height) {
-          layout.x.value = (w * height) / h;
+      type Layout = { width: number; height: number };
+      /**
+       * calculates the size of the image, how it would stretch to the borders of the container,
+       * while maintaining its proportions (Image -> resizeMode="contain")
+       *
+       * test data
+       * image {width: 100, height: 100} container {width: 100, height: 100} -> {width: 100, height: 100}
+       * image {width: 50, height: 50} container {width: 100, height: 100} -> {width: 100, height: 100}
+       * image {width: 150, height: 150} container {width: 100, height: 100} -> {width: 100, height: 100}
+       *
+       * image {width: 100, height: 200} container {width: 100, height: 100} -> {width: 50, height: 100}
+       * image {width: 200, height: 100} container {width: 100, height: 100} -> {width: 100, height: 50}
+       *
+       * image {width: 25, height: 50} container {width: 100, height: 100} -> {width: 50, height: 100}
+       * image {width: 50, height: 25} container {width: 100, height: 100} -> {width: 100, height: 50}
+       *
+       * image {width: 25, height: 500} container {width: 100, height: 100} -> {width: 5, height: 100}
+       * image {width: 500, height: 25} container {width: 100, height: 100} -> {width: 100, height: 5}
+       */
+      const getImageLayout = (
+        imageLayout: Layout,
+        containerLayout: Layout
+      ): Layout => {
+        let scale = 1;
+        if (
+          imageLayout.height > containerLayout.height ||
+          imageLayout.width > containerLayout.width
+        ) {
+          if (imageLayout.height > imageLayout.width) {
+            scale = containerLayout.height / imageLayout.height;
+          } else {
+            scale = containerLayout.width / imageLayout.width;
+          }
         } else {
-          layout.x.value = imageWidth;
+          if (imageLayout.height > imageLayout.width) {
+            scale = containerLayout.height / imageLayout.height;
+          } else {
+            scale = containerLayout.width / imageLayout.width;
+          }
         }
-      } else {
-        const imageWidth = Math.min((w * height) / h, width);
-        const imageHeight = Math.min(h, height);
-        layout.x.value = imageWidth;
-        if (imageWidth === width) {
-          layout.y.value = (h * width) / w;
-        } else {
-          layout.y.value = imageHeight;
-        }
-      }
+        return {
+          width: imageLayout.width * scale,
+          height: imageLayout.height * scale,
+        };
+      };
+      const imageSize = getImageLayout(
+        { width: w, height: h },
+        { width, height }
+      );
+      layout.x.value = imageSize.width;
+      layout.y.value = imageSize.height;
     };
 
     useEffect(() => {
+      if (originalLayout.x.value === 0 || originalLayout.y.value === 0) {
+        return;
+      }
       setImageDimensions({
         width: originalLayout.x.value,
         height: originalLayout.y.value,
